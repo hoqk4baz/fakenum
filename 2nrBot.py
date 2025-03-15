@@ -1,4 +1,3 @@
-import logging
 import random
 import string
 import json
@@ -39,7 +38,34 @@ BOT_TOKEN = "7582766109:AAFjCG-yRDWi8r7ajDN71yviWnCKrvtw2Cs"
 app = Client("2nr_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 def random_ip():
     return ".".join(str(random.randint(0, 255)) for _ in range(4))
+@app.on_message(filters.command("duyuru"))
+async def duyuru(client, message):
+    user_id = message.from_user.id
+    if user_id != ADMIN_ID:
+        await message.reply_text("❌ **Bu komutu sadece admin kullanabilir!**")
+        return
+    if len(message.command) < 2:
+        await message.reply_text("❌ **Lütfen duyuru mesajını girin!**\n\nÖrnek: `/duyuru Merhaba! Yeni güncelleme geldi.`")
+        return
 
+    duyuru_mesaji = message.text.split(None, 1)[1]
+
+    basarili = 0
+    basarisiz = 0
+
+    users = users_collection.find()
+
+    for user in users:
+        user_id = user["user_id"]
+        try:
+            client.send_message(user_id, f"📢 **DUYURU** 📢\n\n{duyuru_mesaji}")
+            basarili += 1
+        except UserIsBlocked:
+            basarisiz += 1
+        except Exception:
+            basarisiz += 1
+
+    await message.reply_text(f"✅ **Duyuru tamamlandı!**\n\n📤 Gönderildi: `{basarili}`\n❌ Başarısız: `{basarisiz}`")
 @app.on_message(filters.command("get"))
 def get_users(client, message):
     user_id = message.from_user.id
@@ -62,8 +88,6 @@ def ban_user(client, message):
     if user_id != ADMIN_ID:
         message.reply_text("❌ **Bu komutu sadece admin kullanabilir!**")
         return
-
-    # Komut ve argümanları al
     if len(message.command) < 2:
         message.reply_text("⚠️ **Kullanım:** `/engelle user_id`")
         return
@@ -175,11 +199,54 @@ def get_https_response(url,headers):
 def rndm(length=10):
     characters = string.ascii_lowercase + string.digits
     return ''.join(random.choice(characters) for _ in range(length))
+user_sessions = {}
+@app.on_callback_query(filters.regex("get_number"))
+def get_number(client, query):
+    user_id = query.from_user.id
+    channel_id = CHANNEL_ID
+
+    if banned_collection.find_one({"user_id": user_id}):
+        query.message.reply_text("🚫 **Engellendiniz!**")
+        return
+
+    try:
+        chat_member = client.get_chat_member(channel_id, user_id)  # sync olarak bekletiyoruz
+        status = chat_member.status
+
+        if status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]:
+            if user_id in user_sessions:
+                query.answer("İsteğiniz işleniyor, lütfen bekleyin...")
+                return
+
+            user_sessions[user_id] = True
+            threading.Thread(target=devam_et, args=(client, query.message)).start()
+            del user_sessions[user_id]
+        else:
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("📢 Kanala Katıl", url=f"https://t.me/{channel_id[1:]}")],
+                [InlineKeyboardButton("🔄 Kontrol Et", callback_data="check_membership")]
+            ])
+            query.message.reply_text("❌ **Botu kullanabilmek için kanala katılmanız gerekiyor!**", reply_markup=buttons)
+            return
+
+    except Exception as e:
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📢 Kanala Katıl", url=f"https://t.me/{channel_id[1:]}")],
+            [InlineKeyboardButton("🔄 Kontrol Et", callback_data="check_membership")]
+        ])
+        query.message.reply_text("❌ **Botu kullanabilmek için kanala katılmanız gerekiyor!**", reply_markup=buttons)
+        return
+
+
+    
+    
+@app.on_message(filters.command("info"))
+def info(client, message):
+    toplam_kullanici = users_collection.count_documents({})
+    message.reply_text(f"📊 **Toplam Kullanıcı:** `{toplam_kullanici}`\n\n🧑🏽‍💻**Yapımcı:** @degeribilinmeyenlerdenim\n\n☄️**Hatalar Karşısında Ulaşın**")
 
 
 CHANNEL_ID = "@whoisryuga"
-
-
 @app.on_message(filters.command("start"))
 def start(client, message):
     user_id = message.from_user.id
@@ -248,40 +315,7 @@ def check_membership(client, query):
     except Exception:
         query.answer("❌\nHenüz kanala katılmadınız!", show_alert=True)
 
-@app.on_callback_query(filters.regex("get_number"))
-def get_number(client, query):
-    user_id = query.from_user.id
-    channel_id = "@whoisryuga"
-    if banned_collection.find_one({"user_id": user_id}):
-            query.message.reply_text("🚫 **Engellendiniz!**")
-            return
-    try:
-        chat_member = client.get_chat_member(channel_id, user_id)
-        status = chat_member.status
 
-        if status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]:  
-            devam_et(client, query.message)
-        else:
-            buttons = InlineKeyboardMarkup([
-                [InlineKeyboardButton("📢 Kanala Katıl", url=f"https://t.me/{channel_id[1:]}")],
-                [InlineKeyboardButton("🔄 Kontrol Et", callback_data="check_membership")]
-            ])
-            query.message.reply_text("❌ **Botu kullanabilmek için kanala katılmanız gerekiyor!**", reply_markup=buttons)
-            return
-
-    except Exception as e:
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📢 Kanala Katıl", url=f"https://t.me/{channel_id[1:]}")],
-            [InlineKeyboardButton("🔄 Kontrol Et", callback_data="check_membership")]
-        ])
-        query.message.reply_text("❌ **Botu kullanabilmek için kanala katılmanız gerekiyor!**", reply_markup=buttons)
-        return
-    
-    
-@app.on_message(filters.command("info"))
-def info(client, message):
-    toplam_kullanici = users_collection.count_documents({})
-    message.reply_text(f"📊 **Toplam Kullanıcı:** `{toplam_kullanici}`\n\n🧑🏽‍💻**Yapımcı:** @degeribilinmeyelerdenim\n\n☄️**Hatalar Karşısında Ulaşın**")
 
 def devam_et(client, message):
     user_id = message.from_user.id
@@ -396,6 +430,7 @@ def devam_et(client, message):
         message_sent.delete()
     except:
         pass
+
     
 @app.on_callback_query(filters.regex("get_new_number"))
 def get_new_number(client, query):
@@ -408,14 +443,14 @@ def get_new_number(client, query):
         chat_member = client.get_chat_member(channel_id, user_id)
         status = chat_member.status
 
-        if status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]:  
-            try:
-                query.message.delete()
-            except:
-                pass
+        if status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]:
+            if user_id in user_sessions:
+                query.answer("Yeni Numara Alınıyor...")
+                return
 
-            query.answer("Yeni numara alınıyor...")
-            devam_et(client, query.message)
+            user_sessions[user_id] = True
+            threading.Thread(target=devam_et, args=(client, query.message)).start()
+            del user_sessions[user_id]
         else:
             buttons = InlineKeyboardMarkup([
                 [InlineKeyboardButton("📢 Kanala Katıl", url=f"https://t.me/{channel_id[1:]}")],
