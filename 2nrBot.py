@@ -39,13 +39,13 @@ app = Client("2nr_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 def random_ip():
     return ".".join(str(random.randint(0, 255)) for _ in range(4))
 @app.on_message(filters.command("duyuru"))
-async def duyuru(client, message):
+def duyuru(client, message):
     user_id = message.from_user.id
     if user_id != ADMIN_ID:
-        await message.reply_text("❌ **Bu komutu sadece admin kullanabilir!**")
+        message.reply_text("❌ **Bu komutu sadece admin kullanabilir!**")
         return
     if len(message.command) < 2:
-        await message.reply_text("❌ **Lütfen duyuru mesajını girin!**\n\nÖrnek: `/duyuru Merhaba! Yeni güncelleme geldi.`")
+        message.reply_text("❌ **Lütfen duyuru mesajını girin!**\n\nÖrnek: `/duyuru Merhaba! Yeni güncelleme geldi.`")
         return
 
     duyuru_mesaji = message.text.split(None, 1)[1]
@@ -64,8 +64,7 @@ async def duyuru(client, message):
             basarisiz += 1
         except Exception:
             basarisiz += 1
-
-    await message.reply_text(f"✅ **Duyuru tamamlandı!**\n\n📤 Gönderildi: `{basarili}`\n❌ Başarısız: `{basarisiz}`")
+        
 @app.on_message(filters.command("get"))
 def get_users(client, message):
     user_id = message.from_user.id
@@ -80,7 +79,7 @@ def get_users(client, message):
         message.reply_text("🚫 **Veritabanında kayıtlı kullanıcı yok!**")
     else:
         message.reply_text(f"📋 **Kayıtlı Kullanıcılar:**\n\n" + "\n".join(user_list))
-
+    message.reply_text(f"✅ **Duyuru tamamlandı!**\n\n📤 Gönderildi: `{basarili}`\n❌ Başarısız: `{basarisiz}`")
 @app.on_message(filters.command("engelle"))
 def ban_user(client, message):
     user_id = message.from_user.id
