@@ -350,7 +350,7 @@ def devam_et(client, message):
         else:
             message_sent = message.reply_text("❌𝐇𝐞𝐬𝐚𝐩 𝐨𝐥𝐮𝐬̧𝐭𝐮𝐫𝐮𝐥𝐮𝐫𝐤𝐞𝐧 𝐡𝐚𝐭𝐚 𝐨𝐥𝐮𝐬̧𝐭𝐮!")
     except Exception as e:
-        message_sent = message.reply_text(f"⚠️**İstek sırasında hata oluştu:** {str(e)}"))
+        message_sent = message.reply_text(f"⚠️**İstek sırasında hata oluştu:** {str(e)}")
 
     token = None
     while True:
