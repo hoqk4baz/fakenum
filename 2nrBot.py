@@ -325,7 +325,7 @@ def devam_et(client, message):
     host = "api.2nr.xyz"
     endpoint = "/auth/register"
     headers = {
-            "Content-Type": "application/json; charset=UTF-8",
+            "Content-Type": "application/json",
             "User-Agent": "okhttp/4.10.0",
             "X-Forwarded-For": rndm_ip
         }
@@ -338,21 +338,19 @@ def devam_et(client, message):
         "id": 103
     }
     json_data = json.dumps(data)
-    
+    connection = http.client.HTTPSConnection(host)
+    connection.request("POST", endpoint, json_data, headers)
+    response = connection.getresponse()
+    response_data = response.read().decode("utf-8")
+    response_json = json.loads(response_data)
     try:
-        connection = http.client.HTTPSConnection(host)
-        connection.request("POST", endpoint, json_data, headers)
-        response = connection.getresponse()
-        response_data = response.read().decode("utf-8")
-        response_json = json.loads(response_data)
-        
         if response_json.get("success", False):
             message_sent = message.reply_text(f"✅𝐍𝐮𝐦𝐚𝐫𝐚 𝐀𝐲𝐚𝐫𝐥𝐚𝐧**ı**𝐲𝐨𝐫")
             time.sleep(1)
         else:
             message_sent = message.reply_text("❌𝐇𝐞𝐬𝐚𝐩 𝐨𝐥𝐮𝐬̧𝐭𝐮𝐫𝐮𝐥𝐮𝐫𝐤𝐞𝐧 𝐡𝐚𝐭𝐚 𝐨𝐥𝐮𝐬̧𝐭𝐮!")
     except Exception as e:
-        message_sent = message.reply_text(f"⚠️**İstek sırasında hata oluştu:** {str(e)}")
+        message_sent = message.reply_text(f"⚠️**İstek sırasında hata oluştu:** {str(e)}"))
 
     token = None
     while True:
