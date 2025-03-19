@@ -1,9 +1,8 @@
 import random
 import string
 import json
-import requests
 import time
-import http.client
+from curl_cffi import requests
 import re
 import threading
 from pyrogram import Client, filters
@@ -64,7 +63,8 @@ def duyuru(client, message):
             basarisiz += 1
         except Exception:
             basarisiz += 1
-        
+
+    message.reply_text(f"✅ **Duyuru tamamlandı!**\n\n📤 Gönderildi: `{basarili}`\n❌ Başarısız: `{basarisiz}`")
 @app.on_message(filters.command("get"))
 def get_users(client, message):
     user_id = message.from_user.id
@@ -79,7 +79,7 @@ def get_users(client, message):
         message.reply_text("🚫 **Veritabanında kayıtlı kullanıcı yok!**")
     else:
         message.reply_text(f"📋 **Kayıtlı Kullanıcılar:**\n\n" + "\n".join(user_list))
-    message.reply_text(f"✅ **Duyuru tamamlandı!**\n\n📤 Gönderildi: `{basarili}`\n❌ Başarısız: `{basarisiz}`")
+
 @app.on_message(filters.command("engelle"))
 def ban_user(client, message):
     user_id = message.from_user.id
@@ -179,20 +179,13 @@ def list_banned_users(client, message):
         message.reply_text("🚷 **Engellenmiş Kullanıcılar:**\n\n" + "\n".join(ban_list))
 
 
-def get_https_response(url,headers):
-    if not url.startswith("https://"):
-        raise ValueError("Sorun Oluştu")
-    host = url.split("/")[2]
-    path = "/" + "/".join(url.split("/")[3:])
-    connection = http.client.HTTPSConnection(host)
-    connection.request("GET", path, headers=headers)
-    response = connection.getresponse()
-    cookies = response.getheader("Set-Cookie")
-    body = response.read().decode('utf-8')
-    if cookies:
-        match = re.search(r"token=([a-fA-F0-9]+)", cookies)
-        if match:
-            return match.group(1)
+def get_https_response(urld,headers):
+    response = requests.get(urld, headers=headers,allow_redirects=False)
+    cookies = response.headers.get("Set-Cookie", "")
+    body = response.text
+    match = re.search(r"token=([a-fA-F0-9]+)", cookies)
+    if match:
+        return match.group(1)
     return None
 
 def rndm(length=10):
@@ -337,12 +330,7 @@ def devam_et(client, message):
         },
         "id": 103
     }
-    json_data = json.dumps(data)
-    connection = http.client.HTTPSConnection(host)
-    connection.request("POST", endpoint, json_data, headers)
-    response = connection.getresponse()
-    response_data = response.read().decode("utf-8")
-    response_json = json.loads(response_data)
+    response_json = requests.post(f"https://{host}{endpoint}", json=data, headers=headers).json()
     try:
         if response_json.get("success", False):
             message_sent = message.reply_text(f"✅𝐍𝐮𝐦𝐚𝐫𝐚 𝐀𝐲𝐚𝐫𝐥𝐚𝐧**ı**𝐲𝐨𝐫")
@@ -373,12 +361,8 @@ def devam_et(client, message):
         'Cookie': f"token={token}; x-app-version=49"
     })
 
-    conn = http.client.HTTPSConnection("api.2nr.xyz")
     payload2 = "{\"id\":300}"
-    conn.request("POST", "/numbers/getRandomNumber", payload2, headers)
-    res = conn.getresponse()
-    data = res.read().decode("utf-8")
-    response_json = json.loads(data)
+    response_json = requests.post(f"https://{host}/numbers/getRandomNumber", data=payload2, headers=headers).json()
 
     if response_json and isinstance(response_json, list):
         num_id = response_json[0].get("id")
@@ -388,10 +372,8 @@ def devam_et(client, message):
     else:
         message_sent.edit_text(f"❌𝐍𝐮𝐦𝐚𝐫𝐚 𝐁𝐞𝐥𝐢𝐫𝐥𝐞𝐧𝐢𝐫𝐤𝐞𝐧 𝐇𝐚𝐭𝐚!")
     payloadx = "{\"query\":{\"availability_days\":[1,2,3,4,5,6,7],\"color\":\"#E63147\",\"hour_from\":null,\"hour_to\":null,\"integrity_token\":\"eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.RD4CJzgbGoUWs_27NfVaDyrAV-hEx5UYloXJLxK1CTHSP9zLXWEahg.JrYhtgRPj7mXjMcZ.k2Yd7ETCsSAvMxmMMYNl04Iz6WNpiGtAobgDtDT5WuhOX95vpFkBfXzCMDBxBS3obITFjsF09p4heFNaNZawQNJRt0WBcTFfuhJ9a01YYaaJFvQI-Lx8-xPIhQdENLE1dUchYfKBJP7e9-Jy0mr4-gXrlF570OnZuw_pgPkrWdEAifVuj49pOt64x7dS46LIfjG81aILT-hP8YkS97qyQfZ8MLec10ylIztjsKebU5XEavnfK_2VFnTB0Gc2QtPlyOjFuEIkBUl6ck1bRwRoeZtAtaL7w7nnVXPP0ZTcg3tTRN55OypLYTL7LvKHZ-hS16Bf4xmQWEBFeqWn0CEfu7Z4cub0yrkCq8j8uwPDQfPvimLIU-bvWF6BkE5eIMtPgqEXPDWuNwMEQAxIrvCaunCannHNtEjstt7ePIA9UYQ7umq6CL6aAZRCAYKVBPUAMOzaoT0iWKtvKhHhQ6o0CJPzjsi1M21BvAhpDz35EuwCm1xVXf2mSDmv1DDOr4yNGlik91zsLl1ZWq8a-vH9w0g3YWI5uftXTmTfnjWIB3iuZ77TM9dwmFVQObAGlKg5TMQ8X-AcZMLdtt8DPLPT-egpyNUgkEuAX6_txp_hsZff5HU59Q7wOETrzawgXJuFmqpGNYYD6-1Uo26wx2AqkkjfmtFk0SYzD4rnTbAXEOX2PPVLYH2cR5IEGoQEBGOdQvZCpGhn9krZv_MllLqnjP03NxGFAfuwMzamPNlt6Bd7Vq2yvH9_BGHv.Qn4Y2lP_16iVrMuxNT420g\",\"marketing\":true,\"name\":\"whoisryuga\",\"nonce\":\"azlwbm02ZnIwYXVwZDM2YjhrNWNrOGEwYnE\",\"number_id\":"+str(num_id)+"},\"id\":301}"
-    conn.request("POST", "/numbers/reserveNumber", payloadx, headers)
-    res = conn.getresponse()
-    data = res.read().decode("utf-8")
-    tt = json.loads(data).get("success")
+    response = requests.post(f"https://{host}/numbers/reserveNumber", data=payloadx, headers=headers).json()
+    tt = response["success"]
     if tt == True:
         pass
     else:
@@ -400,10 +382,7 @@ def devam_et(client, message):
     
     while sayac > 0:
         payload3 = "{\"id\":400}"
-        conn.request("POST", "/sms/get", payload3, headers)
-        res = conn.getresponse()
-        data2 = res.read().decode("utf-8")
-        gg = json.loads(data2)
+        gg = requests.post(f"https://{host}/sms/get", data=payload3, headers=headers).json()
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("𝐍𝐮𝐦𝐚𝐫𝐚 𝐘𝐞𝐧𝐢𝐥𝐞", callback_data="get_new_number")]
         ])
